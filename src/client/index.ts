@@ -1,7 +1,13 @@
+// Utils
+import { makev1LootpayRequest } from "../utils/request";
+
 // Types
 import LootPayCryptoSuccessResponse from "../../types/LootPayCryptoSuccessResponse";
 import LootPaySupportedCryptos from "../../types/LootPaySupportedCryptos";
 import SanitizedBalanceTransaction from "../../types/LootPayBalanceHistory";
+import LootPayCryptoData from "../../types/LootPayCryptoData";
+import LootPayTransaction from "../../types/LootPayTransaction";
+import LootPayMethod from "../../types/LootPayMethod";
 
 export default class LootPayClient {
   constructor(private readonly apiKey: string) {}
@@ -24,50 +30,21 @@ export default class LootPayClient {
     }
   ): Promise<{ err?: string, data?: LootPayCryptoSuccessResponse }> {
     try {
-      const response = await fetch(`https://api.lootpay.com/v1/crypto/${network}/send`, {
+      const { err, data } = await makev1LootpayRequest<LootPayCryptoSuccessResponse>({
+        url: `crypto/${network}/send`,
         method: "POST",
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-        },
-        body: JSON.stringify({
+        body: {
           recipientAddress: address,
           amount,
-        }),
+        },
+        apiKey: this.apiKey,
       });
 
-      type SuccessfulResponse = {
-        success: true,
-        message: string,
-        data: LootPayCryptoSuccessResponse,
-        requestID: string,
-      };
-
-      type FailedResponse = {
-        success: false,
-        message: string,
-        requestID: string,
-      };
-
-      const unsantizedData = await response.json();
-
-      if (typeof unsantizedData !== 'object' || !unsantizedData) {
-        return {
-          err: 'Invalid response',
-        };
-      }
-
-      const data = unsantizedData as SuccessfulResponse | FailedResponse;
-
-      if (!data.success) {
-        return {
-          err: data.message,
-        };
-      }
+      if (err) return { err };
 
       return {
         err: undefined,
-        data: data.data,
+        data: data,
       };
     } catch (error) {
       console.error(error);
@@ -76,112 +53,28 @@ export default class LootPayClient {
     }
   }
 
+  /**
+   * Get the prices of all supported cryptocurrencies
+   */
   async getCryptoPrices() {
     try {
-      const response = await fetch(`https://api.lootpay.com/v1/crypto/prices/get`, {
-        method: "GET",
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-        },
-      });
-
-      type CryptoPriceData = {
-        name: string,
-        price: number,
-        avgFee: number,
-      };
-
       type CryptoPrices = {
-        [key in LootPaySupportedCryptos]: CryptoPriceData;
+        [key in LootPaySupportedCryptos]: LootPayCryptoData;
       } & {
-        [key: string]: CryptoPriceData | undefined;
+        [key: string]: LootPayCryptoData | undefined;
       };
 
-      type SuccessfulResponse = {
-        success: true,
-        message: string,
-        data: CryptoPrices,
-        requestID: string,
-      };
-
-      type FailedResponse = {
-        success: false,
-        message: string,
-        requestID: string,
-      };
-
-      const unsantizedData = await response.json();
-
-      if (typeof unsantizedData !== 'object' || !unsantizedData) {
-        return {
-          err: 'Invalid response',
-        };
-      }
-
-      const data = unsantizedData as SuccessfulResponse | FailedResponse;
-
-      if (!data.success) {
-        return {
-          err: data.message,
-        };
-      }
-      
-      return {
-        err: undefined,
-        data: data.data,
-      };
-    } catch (error) {
-      console.error(error);
-
-      return { err: 'Request failed' };
-    }
-  } 
-
-  async getBalance() {
-    try {
-      const response = await fetch(`https://api.lootpay.com/v1/balance/get`, {
+      const { err, data } = await makev1LootpayRequest<CryptoPrices>({
+        url: `crypto/prices/get`,
         method: "GET",
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-        },
+        apiKey: this.apiKey,
       });
 
-      type SuccessfulResponse = {
-        success: true,
-        message: string,
-        data: {
-          balance: number,
-        },
-        requestID: string,
-      };  
-
-      type FailedResponse = {
-        success: false,
-        message: string,
-        requestID: string,
-      };
-
-      const unsantizedData = await response.json();
-
-      if (typeof unsantizedData !== 'object' || !unsantizedData) {
-        return {
-          err: 'Invalid response',
-        };  
-      }
-
-      const data = unsantizedData as SuccessfulResponse | FailedResponse;
-
-      if (!data.success) {
-        return {  
-          err: data.message,
-        };
-      }
+      if (err) return { err };
 
       return {
         err: undefined,
-        data: data.data,
+        data: data,
       };
     } catch (error) {
       console.error(error);
@@ -190,48 +83,201 @@ export default class LootPayClient {
     }
   }
 
-  async getBalanceHistory() {
+  /**
+   * Get your applications balance
+   */
+  async getBalance() {
     try {
-      const response = await fetch(`https://api.lootpay.com/v1/balance/history`, {
+      const { err, data } = await makev1LootpayRequest<{ balance: number }>({
+        url: `balance/get`,
         method: "GET",
-        headers: {
-          'Content-Type': 'application/json',
-          'x-api-key': this.apiKey,
-        },
+        apiKey: this.apiKey,
       });
 
-      type SuccessfulResponse = {
-        success: true,
-        message: string,
-        data: SanitizedBalanceTransaction[],
-        requestID: string,
-      };
-
-      type FailedResponse = {
-        success: false,
-        message: string,
-        requestID: string,
-      };
-
-      const unsantizedData = await response.json();
-
-      if (typeof unsantizedData !== 'object' || !unsantizedData) {
-        return {
-          err: 'Invalid response',
-        };
-      }
-
-      const data = unsantizedData as SuccessfulResponse | FailedResponse;
-
-      if (!data.success) {
-        return {  
-          err: data.message,
-        };
-      }
+      if (err) return { err };
 
       return {
         err: undefined,
-        data: data.data,  
+        data: data,
+      };
+    } catch (error) {
+      console.error(error);
+
+      return { err: 'Request failed' };
+    }
+  }
+
+  /**
+   * Get the balance history
+   * @param limit - The number of transactions to return
+   * @param offset - The number of transactions to skip
+   */
+  async getBalanceHistory(
+    {
+      limit,
+      offset,
+    }: {
+      limit?: number,
+      offset?: number,
+    }
+  ) {
+    const query = new URLSearchParams();
+
+    if (limit) query.append('limit', limit.toString());
+    if (offset) query.append('offset', offset.toString());
+
+    const queryString = query.toString();
+    try {
+      const { err, data } = await makev1LootpayRequest<SanitizedBalanceTransaction[]>({
+        url: `balance/history${queryString ? `?${queryString}` : ''}`,
+        method: "GET",
+        apiKey: this.apiKey,
+      });
+
+      if (err) return { err };
+
+      return {
+        err: undefined,
+        data: data,
+      };
+    } catch (error) {
+      console.error(error);
+
+      return { err: 'Request failed' };
+    }
+  }
+
+  /**
+   * Get all transactions
+   * @param limit - The number of transactions to return
+   * @param offset - The number of transactions to skip
+   * @param type - The type of transactions to return
+   */
+  async getTransactionHistory(
+    {
+      limit,
+      offset,
+      type,
+    }: {
+      limit?: number,
+      offset?: number,
+      type?: 'cryptoRedemption' | 'balanceAdjustment' | 'giftcardRedemption',
+    }
+  ) {
+    const query = new URLSearchParams();
+
+    if (limit) query.append('limit', limit.toString());
+    if (offset) query.append('offset', offset.toString());
+    if (type) query.append('type', type);
+
+    const queryString = query.toString();
+
+    try {
+      const { err, data } = await makev1LootpayRequest<LootPayTransaction[]>({
+        url: `transactions/list${queryString ? `?${queryString}` : ''}`,
+        method: "GET",
+        apiKey: this.apiKey,
+      });
+
+      if (err) return { err };
+
+      return {
+        err: undefined,
+        data: data,
+      };
+    } catch (error) {
+      console.error(error);
+
+      return { err: 'Request failed' };
+    }
+  }
+
+  /**
+   * Get a transaction by ID
+   * @param transactionID - The ID of the transaction to get
+   */
+  async getTransaction(transactionID: string) {
+    try {
+      const { err, data } = await makev1LootpayRequest<LootPayTransaction>({
+        url: `transactions/get`,
+        method: 'POST',
+        apiKey: this.apiKey,
+        body: {
+          transactionID,
+        },
+      });
+
+      if (err) return { err };
+
+      return {
+        err: undefined,
+        data: data,
+      };
+    } catch (error) {
+      console.error(error);
+
+      return { err: 'Request failed' };
+    }
+  }
+
+  /**
+   * Get all available redemption methods
+   */
+  async getMethods() {
+    try {
+      const { err, data } = await makev1LootpayRequest<LootPayMethod[]>({
+        url: `methods/list`,
+        method: "GET",
+        apiKey: this.apiKey,
+      });
+
+      if (err) return { err };
+
+      return {
+        err: undefined,
+        data: data,
+      };
+    } catch (error) {
+      console.error(error);
+
+      return { err: 'Request failed' };
+    }
+  }
+
+  /**
+   * Send a loot link
+   * @param amount - The amount to send in USD
+   * @param email - The email to send the loot link to
+   * @param username - The username of the user you're sending the loot link to
+   */
+  async sendLootLink(
+    {
+      amount,
+      email,
+      username,
+    }: {
+      amount: number,
+      email: string,
+      username: string,
+    }
+  ) {
+    try {
+      const { err, data } = await makev1LootpayRequest<{ link: string }>({
+        url: `looklink/send`,
+        method: "POST",
+        apiKey: this.apiKey,
+        body: {
+          amount,
+          email,
+          username,
+        },
+      });
+
+      if (err) return { err };
+
+      return {
+        err: undefined,
+        data: data,
       };
     } catch (error) {
       console.error(error);
